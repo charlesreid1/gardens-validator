@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ST3GG :: Flag Verification Terminal</title>
+<style>
+  :root {
+    --bg: #000;
+    --fg: #00ff41;
+    --fg-dim: #008f11;
+    --fg-faint: #003b00;
+    --err: #ff0033;
+    --warn: #ffcc00;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Courier New", Courier, monospace;
+    min-height: 100vh;
+  }
+  body {
+    padding: 2rem 1rem;
+    display: flex;
+    justify-content: center;
+    background-image:
+      radial-gradient(rgba(0,255,65,0.06) 1px, transparent 1px),
+      linear-gradient(180deg, #001500 0%, #000 100%);
+    background-size: 3px 3px, 100% 100%;
+  }
+  .crt {
+    width: 100%;
+    max-width: 780px;
+    border: 1px solid var(--fg-dim);
+    padding: 1.5rem 1.75rem 2rem;
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.25), inset 0 0 40px rgba(0,255,65,0.04);
+    position: relative;
+  }
+  .crt::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.15) 0px,
+      rgba(0,0,0,0.15) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events: none;
+  }
+  pre.banner {
+    color: var(--fg);
+    text-shadow: 0 0 6px rgba(0,255,65,0.7);
+    font-size: 0.72rem;
+    line-height: 1.05;
+    margin: 0 0 0.5rem;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .tagline {
+    color: var(--fg-dim);
+    font-size: 0.85rem;
+    margin: 0 0 1.25rem;
+    letter-spacing: 0.05em;
+  }
+  hr.sep {
+    border: none;
+    border-top: 1px dashed var(--fg-faint);
+    margin: 1rem 0;
+  }
+  label {
+    display: block;
+    color: var(--fg-dim);
+    font-size: 0.8rem;
+    margin: 0.75rem 0 0.25rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  select, input[type="text"] {
+    width: 100%;
+    background: #000;
+    color: var(--fg);
+    border: 1px solid var(--fg-dim);
+    padding: 0.6rem 0.75rem;
+    font-family: inherit;
+    font-size: 1rem;
+    outline: none;
+    caret-color: var(--fg);
+  }
+  select:focus, input[type="text"]:focus {
+    border-color: var(--fg);
+    box-shadow: 0 0 8px rgba(0,255,65,0.5);
+  }
+  select option { background: #000; color: var(--fg); }
+  .prompt-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .prompt-row .caret {
+    color: var(--fg);
+    font-weight: bold;
+    user-select: none;
+  }
+  .prompt-row input { flex: 1; }
+  button {
+    margin-top: 1rem;
+    background: #000;
+    color: var(--fg);
+    border: 1px solid var(--fg);
+    padding: 0.7rem 1.4rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  button:hover:not(:disabled) {
+    background: var(--fg);
+    color: #000;
+    text-shadow: none;
+    box-shadow: 0 0 12px rgba(0,255,65,0.6);
+  }
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: var(--fg-dim);
+    color: var(--fg-dim);
+  }
+  .status {
+    margin-top: 1.25rem;
+    min-height: 3.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px dashed var(--fg-faint);
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .status.ok { color: var(--fg); border-color: var(--fg); box-shadow: 0 0 10px rgba(0,255,65,0.35); }
+  .status.err { color: var(--err); border-color: var(--err); }
+  .status.warn { color: var(--warn); border-color: var(--warn); }
+  .status.info { color: var(--fg-dim); }
+  .found-list {
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: var(--fg-dim);
+  }
+  .found-list .found-item { color: var(--fg); }
+  .footer {
+    margin-top: 1.5rem;
+    font-size: 0.7rem;
+    color: var(--fg-faint);
+    text-align: center;
+    letter-spacing: 0.1em;
+  }
+  .blink { animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+  @media (max-width: 500px) {
+    pre.banner { font-size: 0.55rem; }
+    .crt { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+<main class="crt">
+<pre class="banner">
+   /$$     /$$                                                           /$$                    
+  | $$    | $$                                                          | $$                    
+ /$$$$$$  | $$$$$$$   /$$$$$$         /$$$$$$   /$$$$$$   /$$$$$$   /$$$$$$$  /$$$$$$  /$$$$$$$ 
+|_  $$_/  | $$__  $$ /$$__  $$       /$$__  $$ |____  $$ /$$__  $$ /$$__  $$ /$$__  $$| $$__  $$
+  | $$    | $$  \ $$| $$$$$$$$      | $$  \ $$  /$$$$$$$| $$  \__/| $$  | $$| $$$$$$$$| $$  \ $$
+  | $$ /$$| $$  | $$| $$_____/      | $$  | $$ /$$__  $$| $$      | $$  | $$| $$_____/| $$  | $$
+  |  $$$$/| $$  | $$|  $$$$$$$      |  $$$$$$$|  $$$$$$$| $$      |  $$$$$$$|  $$$$$$$| $$  | $$
+   \___/  |__/  |__/ \_______/       \____  $$ \_______/|__/       \_______/ \_______/|__/  |__/
+                                     /$$  \ $$                                                  
+                                    |  $$$$$$/                                                  
+                                     \______/           ⊰•-•✧  FLAG VERIFICATION  ✧•-•⊱         
+                            
+</pre>
+<p class="tagline">// steganographic garden :: submit flag for verification <span class="blink">_</span></p>
+
+<hr class="sep">
+
+<form id="verify-form" autocomplete="off">
+  <label for="garden">&gt; select garden</label>
+  <select id="garden" name="garden" required></select>
+
+  <label for="flag">&gt; enter flag</label>
+  <div class="prompt-row">
+    <span class="caret">$</span>
+    <input type="text" id="flag" name="flag" placeholder="garden{...} or just the inner text" spellcheck="false" autocapitalize="off" required>
+  </div>
+
+  <button type="submit" id="submit-btn">verify</button>
+</form>
+
+<div id="status" class="status info">[ awaiting input ]</div>
+<div id="found-list" class="found-list" hidden></div>
+
+<p class="footer">
+  // pbkdf2-sha256 :: 400k iterations :: client-side verification only //
+</p>
+</main>
+
+<script>
+"use strict";
+
+/* ============================================================
+ * CONFIG
+ * Each garden entry has:
+ *   - name:  displayed in dropdown
+ *   - salt:  hex string, unique per garden (16+ random bytes)
+ *   - flags: array of hex-encoded PBKDF2-SHA256 hashes (32 bytes each)
+ *
+ * To add a new flag: open ?admin, type the flag content
+ * (either "garden{foo}" or just "foo"), copy the salt+hash
+ * output, and paste into this config.
+ * ============================================================ */
+const ITERATIONS = 400000;
+const HASH_BYTES = 32;
+
+const GARDENS = [
+  {
+    name: "example-garden-01",
+    salt: "a1b2c3d4e5f60718293a4b5c6d7e8f90",
+    flags: [
+      // placeholder: replace with real hashes via ?admin
+      "0000000000000000000000000000000000000000000000000000000000000000"
+    ]
+  },
+  {
+    name: "example-garden-02",
+    salt: "1122334455667788aabbccddeeff0011",
+    flags: [
+      "0000000000000000000000000000000000000000000000000000000000000000"
+    ]
+  }
+];
+
+/* ============================================================
+ * UTILITIES
+ * ============================================================ */
+function hexToBytes(hex) {
+  if (hex.length % 2 !== 0) throw new Error("bad hex");
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  return out;
+}
+function bytesToHex(bytes) {
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Constant-time comparison of two equal-length Uint8Arrays.
+function ctEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
+// Strip "garden{...}" wrapping if present. Accepts either format.
+function normalizeFlag(input) {
+  const trimmed = input.trim();
+  const m = trimmed.match(/^garden\{(.*)\}$/i);
+  return m ? m[1] : trimmed;
+}
+
+async function pbkdf2(passwordStr, saltBytes) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(passwordStr),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: saltBytes, iterations: ITERATIONS, hash: "SHA-256" },
+    key,
+    HASH_BYTES * 8
+  );
+  return new Uint8Array(bits);
+}
+
+/* ============================================================
+ * RATE LIMITING (localStorage-backed, per-garden)
+ * Progressive lockout to slow brute force even further.
+ * ============================================================ */
+const RL_KEY = "st3gg_rl_v1";
+const MAX_ATTEMPTS = 5;         // attempts before lockout kicks in
+const BASE_LOCKOUT_MS = 30_000; // 30s, doubles each subsequent lockout
+const MAX_LOCKOUT_MS = 60 * 60 * 1000; // cap at 1 hour
+
+function loadRL() {
+  try { return JSON.parse(localStorage.getItem(RL_KEY) || "{}"); }
+  catch { return {}; }
+}
+function saveRL(state) {
+  try { localStorage.setItem(RL_KEY, JSON.stringify(state)); } catch {}
+}
+function getGardenRL(name) {
+  const s = loadRL();
+  return s[name] || { attempts: 0, lockoutUntil: 0, lockoutTier: 0 };
+}
+function setGardenRL(name, entry) {
+  const s = loadRL();
+  s[name] = entry;
+  saveRL(s);
+}
+
+function checkLockout(name) {
+  const rl = getGardenRL(name);
+  const now = Date.now();
+  if (rl.lockoutUntil > now) {
+    return { locked: true, remaining: rl.lockoutUntil - now };
+  }
+  return { locked: false };
+}
+
+function recordFailure(name) {
+  const rl = getGardenRL(name);
+  rl.attempts = (rl.attempts || 0) + 1;
+  if (rl.attempts >= MAX_ATTEMPTS) {
+    const tier = (rl.lockoutTier || 0) + 1;
+    const dur = Math.min(BASE_LOCKOUT_MS * Math.pow(2, tier - 1), MAX_LOCKOUT_MS);
+    rl.lockoutUntil = Date.now() + dur;
+    rl.lockoutTier = tier;
+    rl.attempts = 0;
+  }
+  setGardenRL(name, rl);
+}
+
+function recordSuccess(name) {
+  // reset counter on success, keep found-flag record separate
+  setGardenRL(name, { attempts: 0, lockoutUntil: 0, lockoutTier: 0 });
+}
+
+function formatDuration(ms) {
+  const s = Math.ceil(ms / 1000);
+  if (s < 60) return s + "s";
+  const m = Math.floor(s / 60), rs = s % 60;
+  if (m < 60) return m + "m" + (rs ? " " + rs + "s" : "");
+  const h = Math.floor(m / 60), rm = m % 60;
+  return h + "h" + (rm ? " " + rm + "m" : "");
+}
+
+/* ============================================================
+ * FOUND-FLAG TRACKING (cosmetic, localStorage)
+ * ============================================================ */
+const FOUND_KEY = "st3gg_found_v1";
+function loadFound() {
+  try { return JSON.parse(localStorage.getItem(FOUND_KEY) || "{}"); }
+  catch { return {}; }
+}
+function saveFound(state) {
+  try { localStorage.setItem(FOUND_KEY, JSON.stringify(state)); } catch {}
+}
+function markFound(gardenName, hashHex) {
+  const s = loadFound();
+  const arr = s[gardenName] || [];
+  if (!arr.includes(hashHex)) arr.push(hashHex);
+  s[gardenName] = arr;
+  saveFound(s);
+}
+function foundCountFor(gardenName) {
+  const s = loadFound();
+  return (s[gardenName] || []).length;
+}
+
+/* ============================================================
+ * UI
+ * ============================================================ */
+const gardenSelect = document.getElementById("garden");
+const flagInput = document.getElementById("flag");
+const form = document.getElementById("verify-form");
+const status = document.getElementById("status");
+const submitBtn = document.getElementById("submit-btn");
+const foundList = document.getElementById("found-list");
+
+function populateGardens() {
+  gardenSelect.innerHTML = "";
+  for (const g of GARDENS) {
+    const opt = document.createElement("option");
+    opt.value = g.name;
+    opt.textContent = g.name;
+    gardenSelect.appendChild(opt);
+  }
+  updateFoundDisplay();
+}
+
+function updateFoundDisplay() {
+  const name = gardenSelect.value;
+  const g = GARDENS.find(x => x.name === name);
+  if (!g) { foundList.hidden = true; return; }
+  const found = foundCountFor(name);
+  const total = g.flags.length;
+  if (found > 0) {
+    foundList.hidden = false;
+    foundList.innerHTML = `[ progress ] <span class="found-item">${found}/${total}</span> flags captured in ${name}`;
+  } else {
+    foundList.hidden = false;
+    foundList.textContent = `[ progress ] 0/${total} flags captured in ${name}`;
+  }
+}
+
+function setStatus(msg, kind) {
+  status.className = "status " + (kind || "info");
+  status.textContent = msg;
+}
+
+async function handleSubmit(e) {
+  e.preventDefault();
+  const gardenName = gardenSelect.value;
+  const garden = GARDENS.find(g => g.name === gardenName);
+  if (!garden) { setStatus("[ error ] unknown garden", "err"); return; }
+
+  const lock = checkLockout(gardenName);
+  if (lock.locked) {
+    setStatus(`[ locked ] too many attempts. cooldown: ${formatDuration(lock.remaining)}`, "warn");
+    return;
+  }
+
+  const raw = flagInput.value;
+  if (!raw.trim()) { setStatus("[ error ] empty input", "err"); return; }
+  const candidate = normalizeFlag(raw);
+
+  submitBtn.disabled = true;
+  setStatus("[ hashing ] pbkdf2-sha256 @ " + ITERATIONS.toLocaleString() + " iters...", "info");
+
+  try {
+    const saltBytes = hexToBytes(garden.salt);
+    const t0 = performance.now();
+    const derived = await pbkdf2(candidate, saltBytes);
+    const dt = Math.round(performance.now() - t0);
+
+    let matchIdx = -1;
+    // constant-time scan across all target hashes (all comparisons run)
+    for (let i = 0; i < garden.flags.length; i++) {
+      const target = hexToBytes(garden.flags[i]);
+      if (ctEqual(derived, target)) matchIdx = i;
+    }
+
+    if (matchIdx >= 0) {
+      recordSuccess(gardenName);
+      const derivedHex = bytesToHex(derived);
+      const alreadyHad = loadFound()[gardenName]?.includes(derivedHex);
+      markFound(gardenName, derivedHex);
+      const total = garden.flags.length;
+      const found = foundCountFor(gardenName);
+      const suffix = alreadyHad ? " (already captured)" : "";
+      setStatus(
+        `[ ACCEPTED ] flag verified in ${dt}ms\n` +
+        `>> garden{${candidate}} :: ${found}/${total} in ${gardenName}${suffix}`,
+        "ok"
+      );
+      updateFoundDisplay();
+    } else {
+      recordFailure(gardenName);
+      const rl = getGardenRL(gardenName);
+      const lockNow = checkLockout(gardenName);
+      if (lockNow.locked) {
+        setStatus(
+          `[ REJECTED ] invalid flag (${dt}ms)\n` +
+          `[ locked ] too many attempts. cooldown: ${formatDuration(lockNow.remaining)}`,
+          "warn"
+        );
+      } else {
+        const remaining = MAX_ATTEMPTS - rl.attempts;
+        setStatus(
+          `[ REJECTED ] invalid flag (${dt}ms)\n` +
+          `>> attempts remaining before lockout: ${remaining}`,
+          "err"
+        );
+      }
+    }
+  } catch (err) {
+    setStatus("[ error ] " + (err && err.message ? err.message : String(err)), "err");
+  } finally {
+    submitBtn.disabled = false;
+  }
+}
+
+gardenSelect.addEventListener("change", updateFoundDisplay);
+form.addEventListener("submit", handleSubmit);
+
+/* ============================================================
+ * ADMIN MODE — visit ?admin to compute hashes for new flags.
+ * Not a security boundary; anything on the page is public.
+ * ============================================================ */
+async function initAdmin() {
+  const wrap = document.createElement("section");
+  wrap.style.cssText = "margin-top:2rem;padding-top:1rem;border-top:1px dashed var(--fg-faint);";
+  wrap.innerHTML = `
+    <h3 style="color:var(--warn);margin:0 0 0.5rem;font-size:0.9rem;letter-spacing:0.1em;">// ADMIN :: HASH GENERATOR</h3>
+    <p style="color:var(--fg-dim);font-size:0.75rem;margin:0 0 0.75rem;">
+      accepts either "garden{foo}" or "foo". outputs a fresh random salt and a pbkdf2-sha256 hash.
+      copy both into the GARDENS config in this file.
+    </p>
+    <label for="admin-flag">&gt; flag plaintext</label>
+    <input type="text" id="admin-flag" spellcheck="false" autocapitalize="off">
+    <label for="admin-reuse-salt">&gt; reuse salt (optional hex, leave blank to generate)</label>
+    <input type="text" id="admin-reuse-salt" spellcheck="false" placeholder="e.g. paste an existing garden's salt to add another flag to it">
+    <button type="button" id="admin-go">compute</button>
+    <pre id="admin-out" style="margin-top:1rem;color:var(--fg);white-space:pre-wrap;word-break:break-all;font-size:0.8rem;"></pre>
+  `;
+  document.querySelector("main.crt").appendChild(wrap);
+
+  document.getElementById("admin-go").addEventListener("click", async () => {
+    const flag = document.getElementById("admin-flag").value;
+    const reuse = document.getElementById("admin-reuse-salt").value.trim();
+    const out = document.getElementById("admin-out");
+    if (!flag.trim()) { out.textContent = "[ error ] empty flag"; return; }
+    const normalized = normalizeFlag(flag);
+    let saltBytes;
+    if (reuse) {
+      try { saltBytes = hexToBytes(reuse); }
+      catch { out.textContent = "[ error ] bad salt hex"; return; }
+    } else {
+      saltBytes = crypto.getRandomValues(new Uint8Array(16));
+    }
+    out.textContent = "[ hashing... ]";
+    const derived = await pbkdf2(normalized, saltBytes);
+    out.textContent =
+      "salt: " + bytesToHex(saltBytes) + "\n" +
+      "hash: " + bytesToHex(derived) + "\n\n" +
+      "// snippet:\n" +
+      "{\n" +
+      `  name: "your-garden-name",\n` +
+      `  salt: "${bytesToHex(saltBytes)}",\n` +
+      `  flags: [\n    "${bytesToHex(derived)}"\n  ]\n` +
+      "}";
+  });
+}
+
+populateGardens();
+if (new URLSearchParams(location.search).has("admin")) {
+  initAdmin();
+}
+</script>
+</body>
+</html>
