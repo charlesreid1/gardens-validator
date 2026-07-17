@@ -239,6 +239,20 @@ const GARDENS = [
     flags: [
       "e3c556de27376944509ce2feb856b9cd93b33c06b6842f4b99d8086cf225dbe4"
     ]
+  },
+  {
+        name: "Garden of Whispers",
+        salt: "a9817b71a1f9b848a55b596f8f38baea",
+        flags: [
+            "07c227f3a27b253e597b5d7dd9f70b9f13357e4d3afce5706a4f9610fe45ea80"
+        ]
+  },
+  {
+        name: "The Medicinal Garden",
+        salt: "7761181d09e82421a1b7229813a3fb93",
+        flags: [
+            "f109e820c90ed9d45277a6907dd0f225ed63a38829f7657ea07ba2cdb8139281"
+        ]
   }
 ];
 
@@ -503,6 +517,8 @@ async function initAdmin() {
       accepts either "garden{foo}" or "foo". outputs a fresh random salt and a pbkdf2-sha256 hash.
       copy both into the GARDENS config in this file.
     </p>
+    <label for="admin-garden-name">&gt; garden name (optional, placeholder used if blank)</label>
+    <input type="text" id="admin-garden-name" spellcheck="false" autocapitalize="off" placeholder="Garden of ...">
     <label for="admin-flag">&gt; flag plaintext</label>
     <input type="text" id="admin-flag" spellcheck="false" autocapitalize="off">
     <label for="admin-reuse-salt">&gt; reuse salt (optional hex, leave blank to generate)</label>
@@ -515,6 +531,7 @@ async function initAdmin() {
   document.getElementById("admin-go").addEventListener("click", async () => {
     const flag = document.getElementById("admin-flag").value;
     const reuse = document.getElementById("admin-reuse-salt").value.trim();
+    const gardenName = document.getElementById("admin-garden-name").value.trim() || "your-garden-name";
     const out = document.getElementById("admin-out");
     if (!flag.trim()) { out.textContent = "[ error ] empty flag"; return; }
     const normalized = normalizeFlag(flag);
@@ -532,7 +549,7 @@ async function initAdmin() {
       "hash: " + bytesToHex(derived) + "\n\n" +
       "// snippet:\n" +
       "{\n" +
-      `  name: "your-garden-name",\n` +
+      `  name: "${gardenName}",\n` +
       `  salt: "${bytesToHex(saltBytes)}",\n` +
       `  flags: [\n    "${bytesToHex(derived)}"\n  ]\n` +
       "}";
